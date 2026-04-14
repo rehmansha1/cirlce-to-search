@@ -418,6 +418,7 @@ export default function App() {
   const [scanning, setScanning]         = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [popoverOpen, setPopoverOpen]   = useState(false);
+  const [lastImage, setlastImage]   = useState("");
 
   // 🔹 Chat state
   const [messages, setMessages]   = useState([]);   // { role: 'assistant'|'user', text: string }
@@ -531,11 +532,11 @@ export default function App() {
     const tmp = document.createElement("canvas");
     tmp.width = size; tmp.height = size;
     tmp.getContext("2d").drawImage(canvasRef.current, x, y, size, size, 0, 0, size, size);
-    apiScan(tmp.toDataURL("image/jpeg", 0.85).split(",")[1]);
+    apiScan(tmp.toDataURL("image/jpeg", 0.85).split(",")[1], "What is in this image? Be concise.");
   };
 
   // ── initial scan ────────────────────────────────────────
-  const apiScan = async (base64) => {
+  const apiScan = async (base64,prompt) => {
     setScanning(true);
     setResult("Analysing...");
     // 🔹 Reset chat for new scan
@@ -546,14 +547,17 @@ export default function App() {
     try {
       const res = await axios.post(import.meta.env.VITE_URL_URL, {
         image: base64,
-        prompt: "What is in this image? Be concise.",
+        prompt: prompt,
       });
       const answer = res.data.result;
       setResult(answer);
       setScanContext(answer);
+      
       // 🔹 Seed chat with the scan result as first assistant message
       setMessages([{ role: "assistant", text: answer }]);
       scrollToBottom();
+      setlastImage(base64);
+
     } catch (err) {
       const msg = "Error: " + err.message;
       setResult(msg);
@@ -587,19 +591,13 @@ export default function App() {
     }));
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: systemPrompt,
-          messages: apiMessages,
-        }),
+      const res = await axios.post(import.meta.env.VITE_URL_URL, {
+        image: lastImage,
+        prompt: systemPrompt + "\n\n" + q,
       });
-      const data = await res.json();
-      const reply = data.content?.find((b) => b.type === "text")?.text || "No response.";
-      setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
+      const data = res.data.result;
+      console.log("Chat response:", data);
+      setMessages((prev) => [...prev, { role: "assistant", text: data }]);
     } catch (err) {
       setMessages((prev) => [...prev, { role: "assistant", text: "Error: " + err.message }]);
     } finally {
