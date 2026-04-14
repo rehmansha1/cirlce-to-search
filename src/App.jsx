@@ -5,7 +5,7 @@ const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #000; }
+  html, body { background: #060a07; height: 100%; }
 
   :root {
     --green: #00ff80;
@@ -15,8 +15,11 @@ const CSS = `
     --bg-msg-ai: rgba(0,255,128,0.06);
   }
 
+  .app-shell { display: contents; }
+
   .wrapper {
-    position: relative;
+    position: fixed;
+    top: 0; left: 0;
     width: 100vw;
     height: 100vh;
     background: #000;
@@ -24,7 +27,14 @@ const CSS = `
     font-family: 'Space Mono', monospace;
   }
 
-  video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
 
   canvas {
     position: absolute;
@@ -105,6 +115,8 @@ const CSS = `
     background: radial-gradient(ellipse at center, #0a1628 0%, #000 70%);
     z-index: 20;
     transition: opacity 0.6s ease, visibility 0.6s ease;
+    text-align: center;
+    padding: 24px;
   }
   .splash.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
@@ -234,6 +246,10 @@ const CSS = `
     min-width: 16px;
     text-align: center;
   }
+  @media (min-width: 768px) {
+    .history-btn { display: none; }
+  }
+
 
   /* ── result pill ── */
   .result-panel {
@@ -295,8 +311,8 @@ const CSS = `
 
   /* ── popover ── */
   .popover-backdrop {
-    position: absolute;
-    inset: 0;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.55);
     backdrop-filter: blur(6px);
     z-index: 30;
@@ -320,6 +336,29 @@ const CSS = `
     flex-direction: column;
   }
   .popover-backdrop.open .popover { transform: translateY(0); }
+
+  @media (min-width: 768px) {
+    .popover-backdrop {
+      align-items: stretch;
+      justify-content: flex-end;
+      background: rgba(0,0,0,0.3);
+    }
+    .popover {
+      width: 400px;
+      max-height: 100vh;
+      height: 100vh;
+      border-radius: 0;
+      border-top: none;
+      border-left: 1px solid rgba(0,255,128,0.2);
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .popover-backdrop.open .popover { transform: translateX(0); }
+    .popover-handle { display: none; }
+    .hud-corner.br { bottom: 16px; }
+    .hud-corner.bl { bottom: 16px; }
+    .result-panel { max-width: calc(100% - 420px); }
+  }
 
   .popover-handle {
     width: 40px; height: 4px;
@@ -584,8 +623,8 @@ const CSS = `
 
   /* ── history panel ── */
   .history-panel {
-    position: absolute;
-    inset: 0;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
     background: var(--bg-panel);
     z-index: 40;
     display: flex;
@@ -594,6 +633,14 @@ const CSS = `
     transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .history-panel.open { transform: translateX(0); }
+
+  @media (min-width: 768px) {
+    .history-panel {
+      left: auto;
+      width: 400px;
+      border-left: 1px solid rgba(0,255,128,0.2);
+    }
+  }
   .history-header {
     display: flex;
     align-items: center;
@@ -972,6 +1019,7 @@ export default function App() {
   return (
     <>
       <style>{CSS}</style>
+      <div className="app-shell">
       <div className="wrapper">
         <video ref={videoRef} autoPlay muted playsInline />
 
@@ -1170,6 +1218,7 @@ export default function App() {
 
         {/* ── Toast ── */}
         <div className={`toast ${toastVisible ? "show" : ""}`}>{toast}</div>
+      </div>
       </div>
     </>
   );
