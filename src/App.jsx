@@ -574,9 +574,9 @@ export default function App() {
     if (!q || chatBusy) return;
 
     const userMsg = { role: "user", text: q };
+    console.log("User question:", q);
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
-    setChatInput("");
     setChatBusy(true);
     scrollToBottom();
 
@@ -591,12 +591,15 @@ export default function App() {
     }));
 
     try {
+      
       const res = await axios.post(import.meta.env.VITE_URL_URL, {
         image: lastImage,
         prompt: systemPrompt + "\n\n" + q,
       });
       const data = res.data.result;
       console.log("Chat response:", data);
+          setChatInput("");
+
       setMessages((prev) => [...prev, { role: "assistant", text: data }]);
     } catch (err) {
       setMessages((prev) => [...prev, { role: "assistant", text: "Error: " + err.message }]);
@@ -682,8 +685,7 @@ export default function App() {
                   <span className="msg-label">{m.role === "assistant" ? "objectscan" : "you"}</span>
                   <div className="msg-bubble">
                     {/* Show typing indicator on last assistant message while busy */}
-                    {chatBusy && i === messages.length - 1 && m.role === "user" ? null : m.text}
-                  </div>
+{m.text}                  </div>
                 </div>
               ))}
 
