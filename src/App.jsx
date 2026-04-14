@@ -103,6 +103,95 @@ const CSS = `
     text-align: center;
   }
 
+  /* ── capture follow-up overlay ── */
+  .capture-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+  }
+  .capture-overlay.active { opacity: 1; }
+
+  /* animated border */
+  .capture-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1.5px dashed rgba(0,255,128,0.45);
+    border-radius: 4px;
+    animation: border-march 1.2s linear infinite;
+    background: linear-gradient(135deg,
+      rgba(0,255,128,0.03) 0%,
+      transparent 60%
+    );
+  }
+  @keyframes border-march {
+    0%   { border-color: rgba(0,255,128,0.45); }
+    50%  { border-color: rgba(0,255,128,0.15); }
+    100% { border-color: rgba(0,255,128,0.45); }
+  }
+
+  .capture-banner {
+    position: absolute;
+    top: 56px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 12;
+    background: rgba(0,0,0,0.82);
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    padding: 8px 18px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    transform: translateX(-50%) translateY(-6px);
+    white-space: nowrap;
+  }
+  .capture-banner.active {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .capture-banner-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: blink 0.8s step-end infinite;
+    flex-shrink: 0;
+  }
+
+  .capture-cancel-btn {
+    position: absolute;
+    top: 56px;
+    right: 16px;
+    z-index: 13;
+    background: rgba(0,0,0,0.8);
+    border: 1px solid rgba(0,255,128,0.35);
+    color: rgba(0,255,128,0.8);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    pointer-events: all;
+    transition: background 0.2s, border-color 0.2s;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.25s ease, transform 0.25s ease, background 0.2s;
+  }
+  .capture-cancel-btn.active { opacity: 1; transform: translateY(0); }
+  .capture-cancel-btn:hover { background: rgba(255,40,40,0.15); border-color: rgba(255,80,80,0.5); color: #ff8080; }
+
   /* ── splash ── */
   .splash {
     position: absolute;
@@ -249,7 +338,6 @@ const CSS = `
   @media (min-width: 768px) {
     .history-btn { display: none; }
   }
-
 
   /* ── result pill ── */
   .result-panel {
@@ -500,6 +588,36 @@ const CSS = `
     border-radius: 10px 2px 10px 10px;
   }
 
+  /* ── msg with image attachment ── */
+  .msg-attachment {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 6px 6px;
+    background: rgba(0,255,128,0.06);
+    border: 1px solid rgba(0,255,128,0.2);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    max-width: 85%;
+    align-self: flex-end;
+    animation: msg-in 0.22s ease;
+  }
+  .msg-attachment-img {
+    width: 44px; height: 44px;
+    object-fit: cover;
+    border-radius: 3px;
+    border: 1px solid rgba(0,255,128,0.25);
+    flex-shrink: 0;
+  }
+  .msg-attachment-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(0,255,128,0.6);
+    line-height: 1.5;
+  }
+  .msg-attachment-label strong { display: block; color: rgba(0,255,128,0.9); font-size: 10px; }
+
   /* copy btn */
   .msg-copy {
     position: absolute;
@@ -562,11 +680,62 @@ const CSS = `
   /* ── chat input bar ── */
   .chat-input-bar {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     padding: 10px 16px 20px;
     border-top: 1px solid rgba(0,255,128,0.1);
     flex-shrink: 0;
     align-items: flex-end;
+    flex-direction: column;
+  }
+
+  /* pending image preview row */
+  .pending-image-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,255,128,0.05);
+    border: 1px solid rgba(0,255,128,0.2);
+    border-radius: 6px;
+    padding: 6px 10px 6px 6px;
+    animation: msg-in 0.2s ease;
+  }
+  .pending-image-thumb {
+    width: 38px; height: 38px;
+    object-fit: cover;
+    border-radius: 3px;
+    border: 1px solid rgba(0,255,128,0.25);
+    flex-shrink: 0;
+  }
+  .pending-image-label {
+    flex: 1;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(0,255,128,0.6);
+    line-height: 1.5;
+  }
+  .pending-image-label strong { display: block; color: rgba(0,255,128,0.9); font-size: 10px; }
+  .pending-image-remove {
+    background: transparent;
+    border: 1px solid rgba(255,80,80,0.3);
+    color: rgba(255,100,100,0.7);
+    width: 22px; height: 22px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
+  }
+  .pending-image-remove:hover { background: rgba(255,40,40,0.15); color: #ff8080; }
+
+  /* input row (textarea + buttons) */
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    width: 100%;
   }
 
   .chat-input-wrap { flex: 1; position: relative; }
@@ -601,6 +770,47 @@ const CSS = `
     transition: color 0.2s;
   }
   .char-count.warn { color: rgba(255,140,0,0.6); }
+
+  /* camera capture button */
+  .chat-capture-btn {
+    background: transparent;
+    border: 1px solid var(--green-border);
+    color: rgba(0,255,128,0.7);
+    font-size: 16px;
+    padding: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .chat-capture-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--green-dim);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .chat-capture-btn:hover { border-color: var(--green); color: var(--green); }
+  .chat-capture-btn:hover::before { opacity: 1; }
+  .chat-capture-btn:active { transform: scale(0.9); }
+  /* pulsing ring when capturing */
+  .chat-capture-btn.capturing {
+    border-color: var(--green);
+    color: var(--green);
+    animation: capture-ring 1s ease-in-out infinite;
+  }
+  @keyframes capture-ring {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,128,0.4); }
+    50%       { box-shadow: 0 0 0 5px rgba(0,255,128,0); }
+  }
 
   .chat-send {
     background: var(--green);
@@ -779,6 +989,10 @@ export default function App() {
   const [toastVisible, setToastVisible] = useState(false);
   const toastTimer = useRef(null);
 
+  // ── follow-up capture state ──────────────────────────────
+  const [capturingFollowUp, setCapturingFollowUp] = useState(false);
+  const [pendingImage, setPendingImage]           = useState(""); // base64 of the in-chat capture
+
   const showToast = (msg) => {
     setToast(msg);
     setToastVisible(true);
@@ -835,9 +1049,11 @@ export default function App() {
   const drawBox = (ctx) => {
     const { x, y, size } = getSquare();
     if (size < 2) return;
-    ctx.fillStyle = "rgba(0,255,128,0.06)";
+    // Different colour when in follow-up capture mode
+    const color = capturingFollowUp ? "#00cfff" : "#00ff80";
+    ctx.fillStyle = capturingFollowUp ? "rgba(0,207,255,0.07)" : "rgba(0,255,128,0.06)";
     ctx.fillRect(x, y, size, size);
-    ctx.strokeStyle = "#00ff80";
+    ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x, y, size, size);
     const c = 14;
@@ -848,7 +1064,7 @@ export default function App() {
     ctx.moveTo(x + size, y + size - c); ctx.lineTo(x + size, y + size);ctx.lineTo(x + size - c, y + size);
     ctx.moveTo(x + c, y + size);        ctx.lineTo(x, y + size);       ctx.lineTo(x, y + size - c);
     ctx.stroke();
-    ctx.fillStyle = "#00ff80";
+    ctx.fillStyle = color;
     ctx.font = "bold 11px 'Space Mono', monospace";
     ctx.fillText(`${Math.round(size)} × ${Math.round(size)}`, x + 4, y - 6);
   };
@@ -861,13 +1077,15 @@ export default function App() {
   };
 
   const onDown = (cx, cy) => {
-    if (scanning || popoverOpen) return;
+    if (scanning) return;
+    // In follow-up capture mode we allow drawing even if popover would normally block
+    if (popoverOpen && !capturingFollowUp) return;
     const p = clientToCanvas(cx, cy);
     startX.current = p.x; startY.current = p.y;
     endX.current   = p.x; endY.current   = p.y;
     isDown.current = true;
     hasBox.current = true;
-    setShowHint(false);
+    if (!capturingFollowUp) setShowHint(false);
   };
   const onMove = (cx, cy) => {
     if (!isDown.current) return;
@@ -877,7 +1095,11 @@ export default function App() {
   const onUp = () => {
     if (!isDown.current) return;
     isDown.current = false;
-    cropAndSend();
+    if (capturingFollowUp) {
+      cropForFollowUp();
+    } else {
+      cropAndSend();
+    }
   };
 
   const onMouseDown  = (e) => onDown(e.clientX, e.clientY);
@@ -901,6 +1123,41 @@ export default function App() {
     tmp.width = size; tmp.height = size;
     tmp.getContext("2d").drawImage(canvasRef.current, x, y, size, size, 0, 0, size, size);
     apiScan(tmp.toDataURL("image/jpeg", 0.85).split(",")[1], "What is in this image? Be concise.");
+  };
+
+  // ── follow-up capture ───────────────────────────────────
+  const startFollowUpCapture = () => {
+    setPopoverOpen(false);
+    setCapturingFollowUp(true);
+    hasBox.current = false;
+    showToast("Draw a box to capture");
+  };
+
+  const cancelFollowUpCapture = () => {
+    setCapturingFollowUp(false);
+    hasBox.current = false;
+    setPopoverOpen(true);
+  };
+
+  const cropForFollowUp = () => {
+    const { x, y, size } = getSquare();
+    if (size < 20) {
+      setCapturingFollowUp(false);
+      setPopoverOpen(true);
+      showToast("Selection too small — cancelled");
+      return;
+    }
+    triggerFlash();
+    const tmp = document.createElement("canvas");
+    tmp.width = size; tmp.height = size;
+    tmp.getContext("2d").drawImage(canvasRef.current, x, y, size, size, 0, 0, size, size);
+    const base64 = tmp.toDataURL("image/jpeg", 0.85).split(",")[1];
+    setPendingImage(base64);
+    setCapturingFollowUp(false);
+    hasBox.current = false;
+    setPopoverOpen(true);
+    showToast("Image captured — add a message");
+    setTimeout(() => inputRef.current && inputRef.current.focus(), 400);
   };
 
   // ── initial scan ────────────────────────────────────────
@@ -953,24 +1210,35 @@ export default function App() {
     }
   }, [messages]);
 
-  // ── follow-up chat ──────────────────────────────────────
+  // ── follow-up chat (supports optional image attachment) ─
   const sendChat = async (overrideText) => {
     const q = (overrideText || chatInput).trim();
-    if (!q || chatBusy) return;
+    if ((!q && !pendingImage) || chatBusy) return;
 
-    const userMsg = { role: "user", text: q };
+    const capturedImg = pendingImage;
+    const displayText = q || "What is in this image?";
+
+    // Build the user message to display
+    const userMsg = {
+      role: "user",
+      text: displayText,
+      ...(capturedImg ? { attachedImage: capturedImg } : {}),
+    };
+
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     setChatInput("");
+    setPendingImage("");
     setChatBusy(true);
     scrollToBottom();
 
-    const systemPrompt = `You are an object identification assistant. The user scanned an object with their camera and the initial analysis was:\n\n"${scanContext}"\n\nAnswer follow-up questions about this object concisely and helpfully. Don't repeat the full initial description unless asked.`;
+    const systemPrompt = `You are an object identification assistant. The user scanned an object with their camera and the initial analysis was:\n\n"${scanContext}"\n\nAnswer follow-up questions about this object concisely and helpfully.${capturedImg ? " The user has also attached a new image in this follow-up — analyse it in context of the conversation." : ""} Don't repeat the full initial description unless asked.`;
 
     try {
       const res = await axios.post(import.meta.env.VITE_URL_URL, {
-        image: lastImage,
-        prompt: systemPrompt + "\n\n" + q,
+        // Send the follow-up image if available, otherwise keep the original
+        image: capturedImg || lastImage,
+        prompt: systemPrompt + "\n\n" + displayText,
       });
       const data = res.data.result;
       setMessages(prev => [...prev, { role: "assistant", text: data }]);
@@ -989,7 +1257,6 @@ export default function App() {
     }
   };
 
-  // auto-resize textarea
   const handleInputChange = (e) => {
     setChatInput(e.target.value);
     e.target.style.height = "42px";
@@ -1015,6 +1282,7 @@ export default function App() {
   };
 
   const charCount = chatInput.length;
+  const canSend   = (chatInput.trim().length > 0 || pendingImage.length > 0) && !chatBusy;
 
   return (
     <>
@@ -1034,8 +1302,23 @@ export default function App() {
         <div className="hud-corner tl" /><div className="hud-corner tr" />
         <div className="hud-corner bl" /><div className="hud-corner br" />
 
+        {/* ── Follow-up capture overlay & banner ── */}
+        <div className={`capture-overlay ${capturingFollowUp ? "active" : ""}`} />
+
+        <div className={`capture-banner ${capturingFollowUp ? "active" : ""}`}>
+          <span className="capture-banner-dot" />
+          Capture mode — draw a selection
+        </div>
+
+        <button
+          className={`capture-cancel-btn ${capturingFollowUp ? "active" : ""}`}
+          onClick={cancelFollowUpCapture}
+        >
+          ✕ Cancel
+        </button>
+
         {/* draw hint */}
-        {cameraActive && (
+        {cameraActive && !capturingFollowUp && (
           <div className={`draw-hint ${!showHint ? "hidden" : ""}`}>
             <div className="hint-icon" />
             <div className="hint-text">Drag to select an object</div>
@@ -1055,7 +1338,7 @@ export default function App() {
           </div>
         </div>
 
-        {cameraActive && (
+        {cameraActive && !capturingFollowUp && (
           <div className="result-panel" onClick={() => setPopoverOpen(true)}>
             <div className="result-inner">
               <div className="result-left">
@@ -1116,15 +1399,31 @@ export default function App() {
               )}
 
               {messages.map((m, i) => (
-                <div key={i} className={`msg ${m.role}`}>
-                  <span className="msg-label">{m.role === "assistant" ? "objectscan" : "you"}</span>
-                  <div className="msg-bubble-wrap">
-                    <div className="msg-bubble">{m.text}</div>
-                    <button
-                      className={`msg-copy ${copiedIdx === i ? "copied" : ""}`}
-                      onClick={() => copyMessage(m.text, i)}
-                      title="Copy"
-                    >{copiedIdx === i ? "✓" : "⎘"}</button>
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start", gap: 4 }}>
+                  {/* Show attached image above the bubble for user messages */}
+                  {m.role === "user" && m.attachedImage && (
+                    <div className="msg-attachment">
+                      <img
+                        src={`data:image/jpeg;base64,${m.attachedImage}`}
+                        className="msg-attachment-img"
+                        alt="attached"
+                      />
+                      <div className="msg-attachment-label">
+                        <strong>New capture</strong>
+                        attached image
+                      </div>
+                    </div>
+                  )}
+                  <div className={`msg ${m.role}`}>
+                    <span className="msg-label">{m.role === "assistant" ? "objectscan" : "you"}</span>
+                    <div className="msg-bubble-wrap">
+                      <div className="msg-bubble">{m.text}</div>
+                      <button
+                        className={`msg-copy ${copiedIdx === i ? "copied" : ""}`}
+                        onClick={() => copyMessage(m.text, i)}
+                        title="Copy"
+                      >{copiedIdx === i ? "✓" : "⎘"}</button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1141,7 +1440,7 @@ export default function App() {
               )}
             </div>
 
-            {/* Suggestion chips — shown after first scan, before any follow-ups */}
+            {/* Suggestion chips */}
             {messages.length === 1 && !scanning && !chatBusy && (
               <div className="chips-row">
                 {SUGGESTIONS.map((s) => (
@@ -1153,23 +1452,60 @@ export default function App() {
             {/* Input bar */}
             {messages.length > 0 && !scanning && (
               <div className="chat-input-bar">
-                <div className="chat-input-wrap">
-                  <textarea
-                    ref={inputRef}
-                    className="chat-input"
-                    placeholder="Ask anything about this object…"
-                    value={chatInput}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    rows={1}
-                  />
-                  {charCount > 0 && (
-                    <span className={`char-count ${charCount > 400 ? "warn" : ""}`}>{charCount}</span>
-                  )}
+                {/* Pending image preview */}
+                {pendingImage && (
+                  <div className="pending-image-row">
+                    <img
+                      src={`data:image/jpeg;base64,${pendingImage}`}
+                      className="pending-image-thumb"
+                      alt="pending capture"
+                    />
+                    <div className="pending-image-label">
+                      <strong>New capture ready</strong>
+                      will be sent with your message
+                    </div>
+                    <button
+                      className="pending-image-remove"
+                      onClick={() => setPendingImage("")}
+                      title="Remove image"
+                    >✕</button>
+                  </div>
+                )}
+
+                <div className="input-row">
+                  {/* Camera / capture button */}
+                  <button
+                    className={`chat-capture-btn ${capturingFollowUp ? "capturing" : ""}`}
+                    onClick={startFollowUpCapture}
+                    title="Capture a new image to attach"
+                    disabled={chatBusy}
+                  >
+                    {/* Camera SVG icon */}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                  </button>
+
+                  <div className="chat-input-wrap">
+                    <textarea
+                      ref={inputRef}
+                      className="chat-input"
+                      placeholder={pendingImage ? "Add a message (or send image only)…" : "Ask anything about this object…"}
+                      value={chatInput}
+                      onChange={handleInputChange}
+                      onKeyDown={handleKeyDown}
+                      rows={1}
+                    />
+                    {charCount > 0 && (
+                      <span className={`char-count ${charCount > 400 ? "warn" : ""}`}>{charCount}</span>
+                    )}
+                  </div>
+
+                  <button className="chat-send" onClick={() => sendChat()} disabled={!canSend}>
+                    ↑
+                  </button>
                 </div>
-                <button className="chat-send" onClick={() => sendChat()} disabled={chatBusy || !chatInput.trim()}>
-                  ↑
-                </button>
               </div>
             )}
           </div>
