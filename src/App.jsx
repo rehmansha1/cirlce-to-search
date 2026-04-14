@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
 const CSS = `
@@ -6,6 +6,14 @@ const CSS = `
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #000; }
+
+  :root {
+    --green: #00ff80;
+    --green-dim: rgba(0,255,128,0.15);
+    --green-border: rgba(0,255,128,0.2);
+    --bg-panel: #080f0a;
+    --bg-msg-ai: rgba(0,255,128,0.06);
+  }
 
   .wrapper {
     position: relative;
@@ -27,6 +35,64 @@ const CSS = `
     touch-action: none;
   }
 
+  /* ── scan flash ── */
+  .scan-flash {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,255,128,0.18);
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.08s ease;
+  }
+  .scan-flash.active { opacity: 1; }
+
+  /* ── draw hint ── */
+  .draw-hint {
+    position: absolute;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+  .draw-hint.hidden { opacity: 0; }
+  .hint-icon {
+    width: 52px; height: 52px;
+    border: 1.5px dashed rgba(0,255,128,0.5);
+    border-radius: 4px;
+    position: relative;
+    animation: hint-pulse 2s ease-in-out infinite;
+  }
+  .hint-icon::after {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 1.5px solid rgba(0,255,128,0.3);
+    border-radius: 2px;
+    animation: hint-inner 2s ease-in-out infinite;
+  }
+  @keyframes hint-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50%       { transform: scale(1.08); opacity: 1; }
+  }
+  @keyframes hint-inner {
+    0%, 100% { opacity: 0.3; }
+    50%       { opacity: 0.8; }
+  }
+  .hint-text {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(0,255,128,0.6);
+    text-align: center;
+  }
+
   /* ── splash ── */
   .splash {
     position: absolute;
@@ -44,7 +110,7 @@ const CSS = `
 
   .splash-icon {
     width: 80px; height: 80px;
-    border: 2px solid #00ff80;
+    border: 2px solid var(--green);
     border-radius: 4px;
     position: relative;
     animation: pulse-border 2s ease-in-out infinite;
@@ -53,7 +119,7 @@ const CSS = `
     content: '';
     position: absolute;
     width: 16px; height: 16px;
-    border-color: #00ff80;
+    border-color: var(--green);
     border-style: solid;
   }
   .splash-icon::before { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
@@ -71,7 +137,7 @@ const CSS = `
     letter-spacing: -1px;
     text-align: center;
   }
-  .splash h1 span { color: #00ff80; }
+  .splash h1 span { color: var(--green); }
   .splash p { font-size: 12px; color: #555; letter-spacing: 2px; text-transform: uppercase; text-align: center; }
 
   .btn-start {
@@ -80,8 +146,8 @@ const CSS = `
     gap: 10px;
     padding: 14px 32px;
     background: transparent;
-    border: 1px solid #00ff80;
-    color: #00ff80;
+    border: 1px solid var(--green);
+    color: var(--green);
     font-family: 'Space Mono', monospace;
     font-size: 13px;
     letter-spacing: 2px;
@@ -95,7 +161,7 @@ const CSS = `
     content: '';
     position: absolute;
     inset: 0;
-    background: #00ff80;
+    background: var(--green);
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     z-index: 0;
@@ -129,17 +195,45 @@ const CSS = `
     padding: 0 16px;
     background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
     z-index: 10;
-    pointer-events: none;
   }
-  .top-bar .label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #00ff80; }
+  .top-bar .label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--green); pointer-events: none; }
   .top-bar .dot {
     width: 6px; height: 6px;
     border-radius: 50%;
-    background: #00ff80;
-    box-shadow: 0 0 8px #00ff80;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
     animation: blink 1.5s step-end infinite;
+    pointer-events: none;
   }
   @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── history button ── */
+  .history-btn {
+    background: transparent;
+    border: 1px solid var(--green-border);
+    color: var(--green);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.2s, border-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .history-btn:hover { background: var(--green-dim); border-color: var(--green); }
+  .history-badge {
+    background: var(--green);
+    color: #000;
+    border-radius: 2px;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    min-width: 16px;
+    text-align: center;
+  }
 
   /* ── result pill ── */
   .result-panel {
@@ -158,16 +252,16 @@ const CSS = `
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    border: 1px solid rgba(0,255,128,0.2);
+    border: 1px solid var(--green-border);
     border-radius: 6px;
     padding: 10px 14px;
     background: rgba(0,255,128,0.04);
     backdrop-filter: blur(4px);
     transition: border-color 0.2s, background 0.2s;
   }
-  .result-panel:hover .result-inner { border-color: rgba(0,255,128,0.5); background: rgba(0,255,128,0.08); }
+  .result-panel:hover .result-inner { border-color: rgba(0,255,128,0.5); background: var(--green-dim); }
   .result-left { flex: 1; min-width: 0; }
-  .result-tag { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #00ff80; opacity: 0.7; margin-bottom: 4px; }
+  .result-tag { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--green); opacity: 0.7; margin-bottom: 4px; }
   .result-text {
     font-size: clamp(12px, 3vw, 14px);
     color: #fff;
@@ -176,7 +270,7 @@ const CSS = `
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .result-text.scanning { color: #00ff80; animation: flicker 0.15s step-end infinite; }
+  .result-text.scanning { color: var(--green); animation: flicker 0.15s step-end infinite; }
   @keyframes flicker { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
   .result-chevron {
     color: rgba(0,255,128,0.6);
@@ -185,23 +279,6 @@ const CSS = `
     transition: transform 0.2s;
   }
   .result-panel:hover .result-chevron { transform: translateY(-2px); }
-
-  /* ── model input ── */
-  .model-input {
-    position: absolute;
-    top: 14px; right: 16px;
-    background: rgba(0,0,0,0.6);
-    border: 1px solid rgba(0,255,128,0.3);
-    color: #00ff80;
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    padding: 4px 10px;
-    width: 110px;
-    outline: none;
-    z-index: 10;
-    letter-spacing: 1px;
-  }
-  .model-input:focus { border-color: #00ff80; }
 
   /* ── scanlines ── */
   .scanline {
@@ -233,12 +310,12 @@ const CSS = `
 
   .popover {
     width: 100%;
-    background: #0a140e;
+    background: var(--bg-panel);
     border-top: 1px solid rgba(0,255,128,0.25);
     border-radius: 16px 16px 0 0;
     transform: translateY(100%);
     transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
-    max-height: 78vh;
+    max-height: 82vh;
     display: flex;
     flex-direction: column;
   }
@@ -266,12 +343,26 @@ const CSS = `
     font-weight: 700;
     letter-spacing: 3px;
     text-transform: uppercase;
-    color: #00ff80;
+    color: var(--green);
   }
+  .popover-actions { display: flex; gap: 8px; align-items: center; }
+  .popover-action-btn {
+    background: transparent;
+    border: 1px solid var(--green-border);
+    color: rgba(0,255,128,0.6);
+    width: 28px; height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s, color 0.2s;
+    font-family: 'Space Mono', monospace;
+  }
+  .popover-action-btn:hover { background: var(--green-dim); color: var(--green); }
   .popover-close {
     background: transparent;
-    border: 1px solid rgba(0,255,128,0.3);
-    color: #00ff80;
+    border: 1px solid var(--green-border);
+    color: var(--green);
     width: 28px; height: 28px;
     border-radius: 4px;
     cursor: pointer;
@@ -280,13 +371,43 @@ const CSS = `
     transition: background 0.2s;
     font-family: 'Space Mono', monospace;
   }
-  .popover-close:hover { background: rgba(0,255,128,0.1); }
+  .popover-close:hover { background: var(--green-dim); }
+
+  /* ── scan thumbnail ── */
+  .scan-thumb-row {
+    padding: 12px 20px 0;
+    flex-shrink: 0;
+  }
+  .scan-thumb-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0,255,128,0.04);
+    border: 1px solid var(--green-border);
+    border-radius: 6px;
+    padding: 6px 10px 6px 6px;
+  }
+  .scan-thumb {
+    width: 40px; height: 40px;
+    object-fit: cover;
+    border-radius: 3px;
+    border: 1px solid rgba(0,255,128,0.2);
+    flex-shrink: 0;
+  }
+  .scan-thumb-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(0,255,128,0.5);
+    line-height: 1.4;
+  }
+  .scan-thumb-label strong { display: block; color: rgba(0,255,128,0.8); font-size: 10px; }
 
   /* ── chat messages ── */
   .chat-body {
     flex: 1;
     overflow-y: auto;
-    padding: 16px 20px;
+    padding: 14px 20px;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -298,10 +419,10 @@ const CSS = `
     display: flex;
     flex-direction: column;
     gap: 4px;
-    animation: msg-in 0.2s ease;
+    animation: msg-in 0.22s ease;
   }
   @keyframes msg-in {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
@@ -313,12 +434,14 @@ const CSS = `
     letter-spacing: 2px;
     text-transform: uppercase;
     opacity: 0.4;
-    color: #00ff80;
+    color: var(--green);
   }
   .msg.user .msg-label { color: #fff; }
 
+  .msg-bubble-wrap { position: relative; max-width: 85%; }
+  .msg-bubble-wrap:hover .msg-copy { opacity: 1; }
+
   .msg-bubble {
-    max-width: 85%;
     padding: 10px 14px;
     border-radius: 4px;
     font-size: 13px;
@@ -326,7 +449,7 @@ const CSS = `
     white-space: pre-wrap;
   }
   .msg.assistant .msg-bubble {
-    background: rgba(0,255,128,0.06);
+    background: var(--bg-msg-ai);
     border: 1px solid rgba(0,255,128,0.15);
     color: #d4ffd4;
     border-radius: 2px 10px 10px 10px;
@@ -338,12 +461,31 @@ const CSS = `
     border-radius: 10px 2px 10px 10px;
   }
 
+  /* copy btn */
+  .msg-copy {
+    position: absolute;
+    top: 6px; right: -30px;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid var(--green-border);
+    color: rgba(0,255,128,0.6);
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .msg.user .msg-copy { right: auto; left: -30px; }
+  .msg-copy:hover { background: var(--green-dim); color: var(--green); }
+  .msg-copy.copied { color: var(--green); opacity: 1; }
+
   /* typing indicator */
   .typing-dot {
     display: inline-block;
     width: 5px; height: 5px;
     border-radius: 50%;
-    background: #00ff80;
+    background: var(--green);
     margin: 0 2px;
     animation: typing 1s ease-in-out infinite;
   }
@@ -354,20 +496,46 @@ const CSS = `
     40%           { transform: scale(1.2); opacity: 1; }
   }
 
+  /* ── suggestion chips ── */
+  .chips-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 0 20px 10px;
+    flex-shrink: 0;
+  }
+  .chip {
+    background: transparent;
+    border: 1px solid var(--green-border);
+    color: rgba(0,255,128,0.7);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+  .chip:hover { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .chip:active { transform: scale(0.95); }
+
   /* ── chat input bar ── */
   .chat-input-bar {
     display: flex;
     gap: 10px;
-    padding: 12px 16px 20px;
+    padding: 10px 16px 20px;
     border-top: 1px solid rgba(0,255,128,0.1);
     flex-shrink: 0;
     align-items: flex-end;
   }
 
+  .chat-input-wrap { flex: 1; position: relative; }
+
   .chat-input {
-    flex: 1;
+    width: 100%;
     background: rgba(0,255,128,0.04);
-    border: 1px solid rgba(0,255,128,0.2);
+    border: 1px solid var(--green-border);
     border-radius: 6px;
     color: #fff;
     font-family: 'Space Mono', monospace;
@@ -377,15 +545,26 @@ const CSS = `
     outline: none;
     line-height: 1.5;
     min-height: 42px;
-    max-height: 100px;
+    max-height: 110px;
     overflow-y: auto;
     transition: border-color 0.2s;
+    display: block;
   }
   .chat-input::placeholder { color: rgba(255,255,255,0.25); }
   .chat-input:focus { border-color: rgba(0,255,128,0.5); }
 
+  .char-count {
+    position: absolute;
+    bottom: 6px; right: 10px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.2);
+    pointer-events: none;
+    transition: color 0.2s;
+  }
+  .char-count.warn { color: rgba(255,140,0,0.6); }
+
   .chat-send {
-    background: #00ff80;
+    background: var(--green);
     border: none;
     color: #000;
     font-family: 'Space Mono', monospace;
@@ -395,36 +574,170 @@ const CSS = `
     border-radius: 6px;
     cursor: pointer;
     flex-shrink: 0;
-    transition: opacity 0.2s, transform 0.1s;
+    transition: opacity 0.2s, transform 0.1s, background 0.2s;
     height: 42px;
+    min-width: 42px;
   }
-  .chat-send:disabled { opacity: 0.3; cursor: not-allowed; }
-  .chat-send:not(:disabled):active { transform: scale(0.95); }
+  .chat-send:disabled { opacity: 0.3; cursor: not-allowed; background: rgba(0,255,128,0.5); }
+  .chat-send:not(:disabled):hover { background: #00e070; }
+  .chat-send:not(:disabled):active { transform: scale(0.93); }
+
+  /* ── history panel ── */
+  .history-panel {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-panel);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .history-panel.open { transform: translateX(0); }
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(0,255,128,0.15);
+    flex-shrink: 0;
+  }
+  .history-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--green);
+  }
+  .history-back {
+    background: transparent;
+    border: 1px solid var(--green-border);
+    color: var(--green);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 5px 12px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.2s;
+  }
+  .history-back:hover { background: var(--green-dim); }
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,255,128,0.2) transparent;
+  }
+  .history-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    opacity: 0.4;
+  }
+  .history-empty-icon { font-size: 36px; }
+  .history-empty-text { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--green); }
+
+  .history-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--bg-msg-ai);
+    border: 1px solid var(--green-border);
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    animation: msg-in 0.2s ease;
+  }
+  .history-item:hover { border-color: rgba(0,255,128,0.4); background: var(--green-dim); }
+  .history-thumb {
+    width: 48px; height: 48px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid rgba(0,255,128,0.2);
+    flex-shrink: 0;
+  }
+  .history-info { flex: 1; min-width: 0; }
+  .history-num { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: rgba(0,255,128,0.5); margin-bottom: 4px; }
+  .history-desc { font-size: 12px; color: #d4ffd4; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .history-msgs { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 4px; }
+
+  /* ── toast ── */
+  .toast {
+    position: absolute;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: rgba(0,255,128,0.15);
+    border: 1px solid rgba(0,255,128,0.4);
+    color: var(--green);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border-radius: 4px;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 `;
 
+const SUGGESTIONS = [
+  "Where can I buy this?",
+  "How much does it cost?",
+  "Tell me more about it",
+  "Is it safe to use?",
+  "What is it made of?",
+];
+
 export default function App() {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
+  const videoRef    = useRef(null);
+  const canvasRef   = useRef(null);
   const chatBodyRef = useRef(null);
-  const inputRef = useRef(null);
+  const inputRef    = useRef(null);
+  const flashRef    = useRef(null);
 
   const startX = useRef(0); const startY = useRef(0);
   const endX   = useRef(0); const endY   = useRef(0);
   const isDown = useRef(false);
   const hasBox = useRef(false);
 
-  const [model, setModel]               = useState("llava");
   const [result, setResult]             = useState("Draw a selection box over any object");
   const [scanning, setScanning]         = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [popoverOpen, setPopoverOpen]   = useState(false);
-  const [lastImage, setlastImage]   = useState("");
+  const [lastImage, setLastImage]       = useState("");
+  const [showHint, setShowHint]         = useState(true);
 
-  // 🔹 Chat state
-  const [messages, setMessages]   = useState([]);   // { role: 'assistant'|'user', text: string }
-  const [chatInput, setChatInput] = useState("");
-  const [chatBusy, setChatBusy]   = useState(false);
-  const [scanContext, setScanContext] = useState(""); // keeps the initial scan result as context
+  const [messages, setMessages]         = useState([]);
+  const [chatInput, setChatInput]       = useState("");
+  const [chatBusy, setChatBusy]         = useState(false);
+  const [scanContext, setScanContext]   = useState("");
+
+  const [history, setHistory]           = useState([]);
+  const [historyOpen, setHistoryOpen]   = useState(false);
+
+  const [copiedIdx, setCopiedIdx]       = useState(null);
+  const [toast, setToast]               = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimer = useRef(null);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setToastVisible(true);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToastVisible(false), 2000);
+  };
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -483,10 +796,10 @@ export default function App() {
     const c = 14;
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(x, y + c);              ctx.lineTo(x, y);              ctx.lineTo(x + c, y);
-    ctx.moveTo(x + size - c, y);       ctx.lineTo(x + size, y);       ctx.lineTo(x + size, y + c);
-    ctx.moveTo(x + size, y + size - c);ctx.lineTo(x + size, y + size);ctx.lineTo(x + size - c, y + size);
-    ctx.moveTo(x + c, y + size);       ctx.lineTo(x, y + size);       ctx.lineTo(x, y + size - c);
+    ctx.moveTo(x, y + c);               ctx.lineTo(x, y);              ctx.lineTo(x + c, y);
+    ctx.moveTo(x + size - c, y);        ctx.lineTo(x + size, y);       ctx.lineTo(x + size, y + c);
+    ctx.moveTo(x + size, y + size - c); ctx.lineTo(x + size, y + size);ctx.lineTo(x + size - c, y + size);
+    ctx.moveTo(x + c, y + size);        ctx.lineTo(x, y + size);       ctx.lineTo(x, y + size - c);
     ctx.stroke();
     ctx.fillStyle = "#00ff80";
     ctx.font = "bold 11px 'Space Mono', monospace";
@@ -507,6 +820,7 @@ export default function App() {
     endX.current   = p.x; endY.current   = p.y;
     isDown.current = true;
     hasBox.current = true;
+    setShowHint(false);
   };
   const onMove = (cx, cy) => {
     if (!isDown.current) return;
@@ -526,9 +840,16 @@ export default function App() {
   const onTouchMove  = (e) => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); };
   const onTouchEnd   = (e) => { e.preventDefault(); onUp(); };
 
+  const triggerFlash = () => {
+    if (!flashRef.current) return;
+    flashRef.current.classList.add("active");
+    setTimeout(() => flashRef.current && flashRef.current.classList.remove("active"), 120);
+  };
+
   const cropAndSend = () => {
     const { x, y, size } = getSquare();
     if (size < 20) { setResult("Selection too small — try again"); return; }
+    triggerFlash();
     const tmp = document.createElement("canvas");
     tmp.width = size; tmp.height = size;
     tmp.getContext("2d").drawImage(canvasRef.current, x, y, size, size, 0, 0, size, size);
@@ -536,10 +857,9 @@ export default function App() {
   };
 
   // ── initial scan ────────────────────────────────────────
-  const apiScan = async (base64,prompt) => {
+  const apiScan = async (base64, prompt) => {
     setScanning(true);
     setResult("Analysing...");
-    // 🔹 Reset chat for new scan
     setMessages([]);
     setScanContext("");
     setPopoverOpen(true);
@@ -552,12 +872,9 @@ export default function App() {
       const answer = res.data.result;
       setResult(answer);
       setScanContext(answer);
-      
-      // 🔹 Seed chat with the scan result as first assistant message
       setMessages([{ role: "assistant", text: answer }]);
+      setLastImage(base64);
       scrollToBottom();
-      setlastImage(base64);
-
     } catch (err) {
       const msg = "Error: " + err.message;
       setResult(msg);
@@ -568,41 +885,50 @@ export default function App() {
     }
   };
 
-  // 🔹 follow-up chat ──────────────────────────────────────
-  const sendChat = async () => {
-    const q = chatInput.trim();
+  // save to history when scan completes
+  useEffect(() => {
+    if (!scanning && scanContext && lastImage) {
+      setHistory(prev => {
+        const entry = { id: Date.now(), image: lastImage, description: scanContext, messages: [] };
+        return [entry, ...prev.slice(0, 19)];
+      });
+    }
+  }, [scanning, scanContext]);
+
+  // update history messages count
+  useEffect(() => {
+    if (history.length > 0 && messages.length > 1) {
+      setHistory(prev => {
+        const updated = [...prev];
+        updated[0] = { ...updated[0], messages };
+        return updated;
+      });
+    }
+  }, [messages]);
+
+  // ── follow-up chat ──────────────────────────────────────
+  const sendChat = async (overrideText) => {
+    const q = (overrideText || chatInput).trim();
     if (!q || chatBusy) return;
 
     const userMsg = { role: "user", text: q };
-    console.log("User question:", q);
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
+    setChatInput("");
     setChatBusy(true);
     scrollToBottom();
 
-    // Build a system prompt that anchors Claude to the scan context
-    const systemPrompt =
-      `You are an object identification assistant. The user scanned an object with their camera and the initial analysis was:\n\n"${scanContext}"\n\nAnswer follow-up questions about this object concisely and helpfully. Don't repeat the full initial description unless asked.`;
-
-    // Build message history for the API (exclude the seeded assistant opener — it's part of context)
-    const apiMessages = nextMessages.map((m) => ({
-      role: m.role,
-      content: m.text,
-    }));
+    const systemPrompt = `You are an object identification assistant. The user scanned an object with their camera and the initial analysis was:\n\n"${scanContext}"\n\nAnswer follow-up questions about this object concisely and helpfully. Don't repeat the full initial description unless asked.`;
 
     try {
-      
       const res = await axios.post(import.meta.env.VITE_URL_URL, {
         image: lastImage,
         prompt: systemPrompt + "\n\n" + q,
       });
       const data = res.data.result;
-      console.log("Chat response:", data);
-          setChatInput("");
-
-      setMessages((prev) => [...prev, { role: "assistant", text: data }]);
+      setMessages(prev => [...prev, { role: "assistant", text: data }]);
     } catch (err) {
-      setMessages((prev) => [...prev, { role: "assistant", text: "Error: " + err.message }]);
+      setMessages(prev => [...prev, { role: "assistant", text: "Error: " + err.message }]);
     } finally {
       setChatBusy(false);
       scrollToBottom();
@@ -616,6 +942,33 @@ export default function App() {
     }
   };
 
+  // auto-resize textarea
+  const handleInputChange = (e) => {
+    setChatInput(e.target.value);
+    e.target.style.height = "42px";
+    e.target.style.height = Math.min(e.target.scrollHeight, 110) + "px";
+  };
+
+  const copyMessage = (text, idx) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedIdx(idx);
+      showToast("Copied!");
+      setTimeout(() => setCopiedIdx(null), 1500);
+    });
+  };
+
+  const loadHistoryItem = (item) => {
+    setLastImage(item.image);
+    setScanContext(item.description);
+    setMessages(item.messages.length > 0 ? item.messages : [{ role: "assistant", text: item.description }]);
+    setResult(item.description);
+    setHistoryOpen(false);
+    setPopoverOpen(true);
+    scrollToBottom();
+  };
+
+  const charCount = chatInput.length;
+
   return (
     <>
       <style>{CSS}</style>
@@ -628,19 +981,31 @@ export default function App() {
           onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
         />
 
+        <div className="scan-flash" ref={flashRef} />
         <div className="scanline" />
         <div className="hud-corner tl" /><div className="hud-corner tr" />
         <div className="hud-corner bl" /><div className="hud-corner br" />
 
+        {/* draw hint */}
+        {cameraActive && (
+          <div className={`draw-hint ${!showHint ? "hidden" : ""}`}>
+            <div className="hint-icon" />
+            <div className="hint-text">Drag to select an object</div>
+          </div>
+        )}
+
         <div className="top-bar">
           <span className="label">ObjectScan</span>
-          {cameraActive && <div className="dot" />}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {cameraActive && <div className="dot" />}
+            {cameraActive && (
+              <button className="history-btn" onClick={() => setHistoryOpen(true)}>
+                History
+                {history.length > 0 && <span className="history-badge">{history.length}</span>}
+              </button>
+            )}
+          </div>
         </div>
-
-        {cameraActive && (
-          <input className="model-input" value={model}
-            onChange={(e) => setModel(e.target.value)} placeholder="model" />
-        )}
 
         {cameraActive && (
           <div className="result-panel" onClick={() => setPopoverOpen(true)}>
@@ -664,8 +1029,30 @@ export default function App() {
 
             <div className="popover-header">
               <span className="popover-title">/ Analysis + Chat</span>
-              <button className="popover-close" onClick={() => setPopoverOpen(false)}>✕</button>
+              <div className="popover-actions">
+                {messages.length > 0 && !scanning && (
+                  <button
+                    className="popover-action-btn"
+                    title="Copy full analysis"
+                    onClick={() => { copyMessage(messages[0]?.text || "", -1); }}
+                  >⎘</button>
+                )}
+                <button className="popover-close" onClick={() => setPopoverOpen(false)}>✕</button>
+              </div>
             </div>
+
+            {/* Scan thumbnail */}
+            {lastImage && !scanning && (
+              <div className="scan-thumb-row">
+                <div className="scan-thumb-wrap">
+                  <img src={`data:image/jpeg;base64,${lastImage}`} className="scan-thumb" alt="scan" />
+                  <div className="scan-thumb-label">
+                    <strong>Scanned object</strong>
+                    {messages.length > 1 ? `${messages.length - 1} follow-up${messages.length > 2 ? "s" : ""}` : "Tap to ask anything"}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Messages */}
             <div className="chat-body" ref={chatBodyRef}>
@@ -683,13 +1070,17 @@ export default function App() {
               {messages.map((m, i) => (
                 <div key={i} className={`msg ${m.role}`}>
                   <span className="msg-label">{m.role === "assistant" ? "objectscan" : "you"}</span>
-                  <div className="msg-bubble">
-                    {/* Show typing indicator on last assistant message while busy */}
-{m.text}                  </div>
+                  <div className="msg-bubble-wrap">
+                    <div className="msg-bubble">{m.text}</div>
+                    <button
+                      className={`msg-copy ${copiedIdx === i ? "copied" : ""}`}
+                      onClick={() => copyMessage(m.text, i)}
+                      title="Copy"
+                    >{copiedIdx === i ? "✓" : "⎘"}</button>
+                  </div>
                 </div>
               ))}
 
-              {/* Typing indicator while waiting for chat reply */}
               {chatBusy && (
                 <div className="msg assistant">
                   <span className="msg-label">objectscan</span>
@@ -702,19 +1093,33 @@ export default function App() {
               )}
             </div>
 
-            {/* Input bar — only shown after first scan result */}
+            {/* Suggestion chips — shown after first scan, before any follow-ups */}
+            {messages.length === 1 && !scanning && !chatBusy && (
+              <div className="chips-row">
+                {SUGGESTIONS.map((s) => (
+                  <button key={s} className="chip" onClick={() => sendChat(s)}>{s}</button>
+                ))}
+              </div>
+            )}
+
+            {/* Input bar */}
             {messages.length > 0 && !scanning && (
               <div className="chat-input-bar">
-                <textarea
-                  ref={inputRef}
-                  className="chat-input"
-                  placeholder="Ask anything about this object…"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  rows={1}
-                />
-                <button className="chat-send" onClick={sendChat} disabled={chatBusy || !chatInput.trim()}>
+                <div className="chat-input-wrap">
+                  <textarea
+                    ref={inputRef}
+                    className="chat-input"
+                    placeholder="Ask anything about this object…"
+                    value={chatInput}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    rows={1}
+                  />
+                  {charCount > 0 && (
+                    <span className={`char-count ${charCount > 400 ? "warn" : ""}`}>{charCount}</span>
+                  )}
+                </div>
+                <button className="chat-send" onClick={() => sendChat()} disabled={chatBusy || !chatInput.trim()}>
                   ↑
                 </button>
               </div>
@@ -722,7 +1127,36 @@ export default function App() {
           </div>
         </div>
 
-        {/* Splash */}
+        {/* ── History panel ── */}
+        <div className={`history-panel ${historyOpen ? "open" : ""}`}>
+          <div className="history-header">
+            <span className="history-title">/ Scan History</span>
+            <button className="history-back" onClick={() => setHistoryOpen(false)}>← Back</button>
+          </div>
+          <div className="history-list">
+            {history.length === 0 ? (
+              <div className="history-empty">
+                <div className="history-empty-icon">◫</div>
+                <div className="history-empty-text">No scans yet</div>
+              </div>
+            ) : (
+              history.map((item, i) => (
+                <div key={item.id} className="history-item" onClick={() => loadHistoryItem(item)}>
+                  <img src={`data:image/jpeg;base64,${item.image}`} className="history-thumb" alt="scan" />
+                  <div className="history-info">
+                    <div className="history-num">Scan #{history.length - i}</div>
+                    <div className="history-desc">{item.description}</div>
+                    {item.messages.length > 1 && (
+                      <div className="history-msgs">{item.messages.length - 1} follow-up message{item.messages.length > 2 ? "s" : ""}</div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* ── Splash ── */}
         <div className={`splash ${cameraActive ? "hidden" : ""}`}>
           <div className="splash-icon" />
           <div>
@@ -733,6 +1167,9 @@ export default function App() {
             <span>&#9654; Enable Camera</span>
           </button>
         </div>
+
+        {/* ── Toast ── */}
+        <div className={`toast ${toastVisible ? "show" : ""}`}>{toast}</div>
       </div>
     </>
   );
